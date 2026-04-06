@@ -15,7 +15,8 @@ c = conn.cursor()
 c.execute("""
 CREATE TABLE IF NOT EXISTS users(
     username TEXT PRIMARY KEY,
-    password TEXT
+    password BLOB,
+    security TEXT
 )
 """)
 conn.commit()
@@ -185,6 +186,28 @@ if st.session_state.page == "signup" and not st.session_state.logged_in:
             st.success("Account Created ✅ Now Login")
         except:
             st.error("Username already exists ❌")
+
+# ---------------- FORGOT PASSWORD ----------------
+if st.session_state.page == "forgot":
+    st.title("🔑 Reset Password")
+
+    user = st.text_input("Username")
+    answer = st.text_input("Favorite color?")
+    new_pass = st.text_input("New Password", type="password")
+
+    if st.button("Reset Password"):
+        c.execute("SELECT security FROM users WHERE username=?", (user,))
+        result = c.fetchone()
+
+        if result and result[0] == answer:
+            hashed = bcrypt.hashpw(new_pass.encode(), bcrypt.gensalt())
+
+            c.execute("UPDATE users SET password=? WHERE username=?", (hashed, user))
+            conn.commit()
+
+            st.success("Password Reset Successful ✅")
+        else:
+            st.error("Wrong answer ❌")
 
 # =========================
 # 📊 DASHBOARD (AFTER LOGIN)
