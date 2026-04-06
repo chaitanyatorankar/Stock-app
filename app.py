@@ -139,7 +139,7 @@ if st.session_state.page == "about" and not st.session_state.logged_in:
 
     st.stop()
 
-import bcrypt  # file ke top me hona chahiye
+import bcrypt 
 
 # ---------------- LOGIN ----------------
 if st.session_state.page == "login" and not st.session_state.logged_in:
