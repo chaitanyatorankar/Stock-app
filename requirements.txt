@@ -9,3 +9,4 @@ html5lib
 chardet
 charset-normalizer
 bcrypt
+bcrypt==4.1.2
