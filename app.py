@@ -174,13 +174,22 @@ if st.session_state.page == "signup" and not st.session_state.logged_in:
     new_user = st.text_input("Create Username")
     new_pass = st.text_input("Create Password", type="password")
 
+# ---------------- SIGNUP ----------------
+if st.session_state.page == "signup" and not st.session_state.logged_in:
+    st.markdown('<div class="title">📝 Signup</div>', unsafe_allow_html=True)
+
+    new_user = st.text_input("Create Username")
+    new_pass = st.text_input("Create Password", type="password")
+    security = st.text_input("Your favorite color?")
+
     if st.button("Signup"):
         try:
-            # 🔐 password hash karo
+            # 🔐 password hash
             hashed_password = bcrypt.hashpw(new_pass.encode(), bcrypt.gensalt())
 
-            # 👇 yaha hashed password store hoga
-            c.execute("INSERT INTO users VALUES (?, ?)", (new_user, hashed_password))
+            # 👇 3 values insert karni hai (username, password, security)
+            c.execute("INSERT INTO users VALUES (?, ?, ?)", 
+                      (new_user, hashed_password, security))
             conn.commit()
 
             st.success("Account Created ✅ Now Login")
@@ -223,85 +232,32 @@ if st.session_state.logged_in:
 
     forecast_days = st.sidebar.slider("Forecast Days", 5, 90, 30)
 
-sector_stocks = {
-    "IT": {
-        "TCS":"TCS.NS","Infosys":"INFY.NS","Wipro":"WIPRO.NS",
-        "HCL Tech":"HCLTECH.NS","Tech Mahindra":"TECHM.NS",
-        "LTIMindtree":"LTIM.NS","Mphasis":"MPHASIS.NS",
-        "Coforge":"COFORGE.NS","L&T Tech":"LTTS.NS",
-        "Zensar":"ZENSARTECH.NS","Persistent":"PERSISTENT.NS",
-        "KPIT":"KPITTECH.NS","Birlasoft":"BSOFT.NS",
-        "Tanla":"TANLA.NS","Route Mobile":"ROUTE.NS"
-    },
+    sector = st.sidebar.selectbox("Sector", list(sector_stocks.keys()))
+    stock = st.sidebar.selectbox("Stock", list(sector_stocks[sector].keys()))
+    symbol = sector_stocks[sector][stock]
 
-    "Banking": {
-        "HDFC Bank":"HDFCBANK.NS","ICICI":"ICICIBANK.NS","SBI":"SBIN.NS",
-        "Axis":"AXISBANK.NS","Kotak":"KOTAKBANK.NS",
-        "IndusInd":"INDUSINDBK.NS","Yes Bank":"YESBANK.NS",
-        "IDFC First":"IDFCFIRSTB.NS","Bandhan":"BANDHANBNK.NS",
-        "PNB":"PNB.NS","Bank of Baroda":"BANKBARODA.NS",
-        "Canara":"CANBK.NS","Union Bank":"UNIONBANK.NS",
-        "RBL":"RBLBANK.NS","Federal":"FEDERALBNK.NS"
-    },
+    df = yf.download(symbol, start=start_date, end=end_date)
 
-    "FMCG": {
-        "ITC":"ITC.NS","HUL":"HINDUNILVR.NS","Nestle":"NESTLEIND.NS",
-        "Britannia":"BRITANNIA.NS","Dabur":"DABUR.NS",
-        "Godrej":"GODREJCP.NS","Marico":"MARICO.NS",
-        "Colgate":"COLPAL.NS","Tata Consumer":"TATACONSUM.NS",
-        "UBL":"UBL.NS","Emami":"EMAMILTD.NS",
-        "Radico":"RADICO.NS","VBL":"VBL.NS",
-        "Balrampur":"BALRAMCHIN.NS","Zydus Wellness":"ZYDUSWELL.NS"
-    },
+    if not df.empty:
+        df = df[['Close']]
 
-    "Energy": {
-        "Reliance":"RELIANCE.NS","ONGC":"ONGC.NS","NTPC":"NTPC.NS",
-        "Power Grid":"POWERGRID.NS","Coal India":"COALINDIA.NS",
-        "BPCL":"BPCL.NS","HPCL":"HPCL.NS",
-        "IOC":"IOC.NS","Adani Green":"ADANIGREEN.NS",
-        "Adani Power":"ADANIPOWER.NS","Tata Power":"TATAPOWER.NS",
-        "Torrent":"TORNTPOWER.NS","NHPC":"NHPC.NS",
-        "Suzlon":"SUZLON.NS","GAIL":"GAIL.NS"
-    },
+        model = ARIMA(df['Close'], order=(5,1,0))
+        model_fit = model.fit()
 
-    "Auto": {
-        "Maruti":"MARUTI.NS","Tata Motors":"TATAMOTORS.NS",
-        "M&M":"M&M.NS","Bajaj Auto":"BAJAJ-AUTO.NS",
-        "Hero":"HEROMOTOCO.NS","Ashok Leyland":"ASHOKLEY.NS",
-        "TVS":"TVSMOTOR.NS","Eicher":"EICHERMOT.NS",
-        "Escorts":"ESCORTS.NS","Force Motors":"FORCEMOT.NS",
-        "Sona BLW":"SONACOMS.NS","Exide":"EXIDEIND.NS",
-        "Amara Raja":"AMARAJABAT.NS","Bosch":"BOSCHLTD.NS",
-        "MRF":"MRF.NS"
-    }
-}
+        forecast = model_fit.forecast(steps=forecast_days)
 
-sector = st.sidebar.selectbox("Sector", list(sector_stocks.keys()))
-stock = st.sidebar.selectbox("Stock", list(sector_stocks[sector].keys()))
-symbol = sector_stocks[sector][stock]
+        future_dates = pd.date_range(df.index[-1], periods=forecast_days+1, freq='B')[1:]
 
-df = yf.download(symbol, start=start_date, end=end_date)
+        fig, ax = plt.subplots(figsize=(10,5))
+        ax.plot(df.index, df['Close'], label="Actual")
+        ax.plot(future_dates, forecast, '--', label="Forecast")
 
-if not df.empty:
-    df = df[['Close']]
+        ax.set_title(f"{stock} Forecast")
+        ax.legend()
 
-    model = ARIMA(df['Close'], order=(5,1,0))
-    model_fit = model.fit()
+        st.pyplot(fig)
 
-    forecast = model_fit.forecast(steps=forecast_days)
-
-    future_dates = pd.date_range(df.index[-1], periods=forecast_days+1, freq='B')[1:]
-
-    fig, ax = plt.subplots(figsize=(10,5))
-    ax.plot(df.index, df['Close'], label="Actual")
-    ax.plot(future_dates, forecast, '--', label="Forecast")
-
-    ax.set_title(f"{stock} Forecast")
-    ax.legend()
-
-    st.pyplot(fig)
-
-    st.dataframe(pd.DataFrame({"Forecast": forecast.values}, index=future_dates))
+        st.dataframe(pd.DataFrame({"Forecast": forecast.values}, index=future_dates))
 
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
