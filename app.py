@@ -139,6 +139,8 @@ if st.session_state.page == "about" and not st.session_state.logged_in:
 
     st.stop()
 
+import bcrypt  # file ke top me hona chahiye
+
 # ---------------- LOGIN ----------------
 if st.session_state.page == "login" and not st.session_state.logged_in:
     st.markdown('<div class="title">🔐 Login</div>', unsafe_allow_html=True)
@@ -147,10 +149,12 @@ if st.session_state.page == "login" and not st.session_state.logged_in:
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        # 👇 sirf password fetch karo
+        c.execute("SELECT password FROM users WHERE username=?", (username,))
         result = c.fetchone()
 
-        if result:
+        # 🔐 hashed password verify karo
+        if result and bcrypt.checkpw(password.encode(), result[0]):
             st.session_state.logged_in = True
             st.session_state.page = "dashboard"
             st.success("Login Successful ✅")
@@ -159,6 +163,8 @@ if st.session_state.page == "login" and not st.session_state.logged_in:
             st.error("Invalid Credentials ❌")
 
     st.stop()
+
+import bcrypt   # <-- file ke top me add kar
 
 # ---------------- SIGNUP ----------------
 if st.session_state.page == "signup" and not st.session_state.logged_in:
@@ -169,13 +175,16 @@ if st.session_state.page == "signup" and not st.session_state.logged_in:
 
     if st.button("Signup"):
         try:
-            c.execute("INSERT INTO users VALUES (?, ?)", (new_user, new_pass))
+            # 🔐 password hash karo
+            hashed_password = bcrypt.hashpw(new_pass.encode(), bcrypt.gensalt())
+
+            # 👇 yaha hashed password store hoga
+            c.execute("INSERT INTO users VALUES (?, ?)", (new_user, hashed_password))
             conn.commit()
+
             st.success("Account Created ✅ Now Login")
         except:
             st.error("Username already exists ❌")
-
-    st.stop()
 
 # =========================
 # 📊 DASHBOARD (AFTER LOGIN)
